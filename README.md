@@ -40,3 +40,6 @@ https://resources.rescale.com/news/
          https://resources.rescale.com/news/something
          .
          .
+
+## Note
+There are few options added as comments which indicate alternate ways of doing things with explanation on the same
