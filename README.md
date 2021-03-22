@@ -9,6 +9,10 @@ It supports a stopping mechanism to crawling, which is based on the max number o
 $ ./go run main.go <initial/starting point url> <stopping limit>
 ```
 
+## Pre-requisites to run this program locally
+Need to have latest version of go lang installed
+Active internet connection for crawling the URL
+
 ## Testing
 Run the following command to test if this program is working as expected:
 ```
