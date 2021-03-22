@@ -51,11 +51,11 @@ func main(){
 
   // Initiate required structs
 
-  // Option 3: Currently commented the map used for checking if the url has already been crawled to
-  // avoid loops. I might be missing something here, but there seems to be concurrent read
-  // write error on the sync map implementation, which is supposed to be thread safe. So I am using
-  // own version of thread safe map with mutex which is definitely slow. We can improve the performance
-  // by using something better to keep track of crawled urls
+  // Option 3: Currently commented the sync.Map for checking if the url has already been crawled to
+  // avoid loops. I might be missing something with sync.Map here, but there seems to be concurrent read
+  // write error on the sync map implementation, which is supposed to be thread safe.
+  // So I am using own version of thread safe map with mutex which is definitely slow.
+  // We can improve the performance by using something better to keep track of crawled urls.
 
   // urlsCrawled := sync.Map{}
 

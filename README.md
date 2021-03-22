@@ -46,5 +46,10 @@ https://resources.rescale.com/news/
          .
 ```
 
+## Potential improvements that can immediately improve this current implementation
+I have added comments in the code on few things that can be improved for quick performance benifits.
+
+Few other improvements are with error handling/logging, filter on urls and waits/retries of http get call. There are times when the crawling stops due to few of the above mentioned issues, which can be significantly improved with follow-up patches.
+
 ## Note
 There are few options added as comments which indicate alternate ways of doing things with explanation on the same
