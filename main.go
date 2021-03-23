@@ -1,9 +1,11 @@
 package main
 
 import (
+  "bufio"
   "fmt"
   "golang.org/x/net/html"
   "io/ioutil"
+  "log"
   "math"
   "net"
   "net/http"
@@ -12,6 +14,16 @@ import (
   "strings"
   "sync"
   "time"
+)
+
+const (
+  _validationInitURL = "http://www.rescale.com"
+  _validationMaxURLCrawls = 5000
+  _validationThreshold = 0.20 // The reason for having low threshold is, the sample set extracted and the validation
+  // run might have significantly different results especially on a stopping run, due to some websites being unresponsive
+  // or slow and the other threads fetching from different urls might be faster, which might not have been the case on
+  // the crawl done for collecting validation urls. I am considering this to verify the webcrawler results since the crawl
+  // won't fetch so many matching urls if it wasn't working as expected.
 )
 
 type logger struct {
@@ -36,8 +48,6 @@ func main(){
 
   // extract the initial URL which is the starting point of the crawl
   initURL := os.Args[1]
-  fmt.Println("Starting crawling from the initial URL: ", initURL)
-  fmt.Println("")
 
   // extract the stopping point of max number of URLs to be crawled
   maxURLCrawls := math.MaxInt32
@@ -66,54 +76,69 @@ func main(){
     mutex: sync.Mutex{},
   }
 
-  urlsAlreadyCrawled := &safeMap{
+  crawledURLs := &safeMap{
     mutex: sync.Mutex{},
     m: make(map[string]struct{}),
   }
 
-  StartCrawlingURL(initURL, log, httpClient, urlsAlreadyCrawled, maxURLCrawls)
+  if initURL == "validate" {
+    fmt.Println("Validating the webcrawler\n")
+    StartCrawlingURL(_validationInitURL, log, httpClient, crawledURLs, _validationMaxURLCrawls, true)
+    ValidateWebCrawler(crawledURLs)
+    return
+  }
+
+  fmt.Println("Starting crawling from the initial URL: ", initURL)
+  fmt.Println("")
+
+  StartCrawlingURL(initURL, log, httpClient, crawledURLs, maxURLCrawls, false)
 
   return
 }
 
 // StartCrawlingURL is the starting point of web crawling for the initial url provided by the user
-func StartCrawlingURL(initURL string, log *logger, httpClient *httpClient, urlsAlreadyCrawled *safeMap, maxURLCrawls int) {
+func StartCrawlingURL(initURL string, log *logger, httpClient *httpClient, crawledURLs *safeMap, maxURLCrawls int, validation bool) {
   urls := ReadAndExtractURLs(initURL, httpClient)
-  urlsAlreadyCrawled.m[initURL] = struct{}{}
-  log.SafePrint(initURL, urls)
-  CrawlURLs(urls, log, httpClient, urlsAlreadyCrawled, maxURLCrawls)
+  crawledURLs.m[initURL] = struct{}{}
+  log.SafePrint(initURL, urls, validation)
+  CrawlURLs(urls, log, httpClient, crawledURLs, maxURLCrawls, validation)
   return
 }
 
 // CrawlURLs is the thread safe recursive URL extractor for the given set of urls
 func CrawlURLs(urls map[string]struct{}, log *logger, httpClient *httpClient,
-  urlsAlreadyCrawled *safeMap, maxURLCrawls int) {
+    crawledURLs *safeMap, maxURLCrawls int, validation bool) {
   // Option 2: Uncomment this to keep the crawl organized in terms of page wise crawling
   //urlMaps := make([]map[string]struct{}, 0)
   for url, _ := range urls {
-    urlsAlreadyCrawled.mutex.Lock()
-    _, ok := urlsAlreadyCrawled.m[url]
-    urlsAlreadyCrawled.mutex.Unlock()
+    crawledURLs.mutex.Lock()
+    _, ok := crawledURLs.m[url]
+    crawledURLs.mutex.Unlock()
     if ok {
      continue
     }
 
-    crawledURLs := ReadAndExtractURLs(url, httpClient)
+    extractedURLs := ReadAndExtractURLs(url, httpClient)
 
-    urlsAlreadyCrawled.mutex.Lock()
-    urlsAlreadyCrawled.m[url] = struct{}{}
+    crawledURLs.mutex.Lock()
+    crawledURLs.m[url] = struct{}{}
 
     // Check if the stopping condition has been met
-    if len(urlsAlreadyCrawled.m) > maxURLCrawls {
-      os.Exit(0)
+    if len(crawledURLs.m) > maxURLCrawls {
+      //for k, _ := range crawledURLs.m {
+      //  fmt.Println(k)
+      //}
+      fmt.Println("length of map: ",len(crawledURLs.m))
+      crawledURLs.mutex.Unlock()
+      return
     }
 
-    urlsAlreadyCrawled.mutex.Unlock()
+    crawledURLs.mutex.Unlock()
 
-    log.SafePrint(url, crawledURLs)
+    log.SafePrint(url, extractedURLs, validation)
 
     // Option 1: Comment this to keep the crawl organized in terms of page wise crawling
-    go CrawlURLs(crawledURLs, log, httpClient, urlsAlreadyCrawled, maxURLCrawls)
+    go CrawlURLs(extractedURLs, log, httpClient, crawledURLs, maxURLCrawls, validation)
 
     // Option 2:
     //urlMaps = append(urlMaps, crawledURLs)
@@ -205,12 +230,52 @@ func (c *httpClient) GetHTTP(initURL string) (*http.Response, error) {
 
 // SafePrint uses mutex to keep the print of each url and its nested urls organized in one place
 // This is one of the bottlenecks and can be removed by using better loggers/ output display mechanism
-func (l *logger) SafePrint(parentURL string, urls map[string]struct{}) {
+func (l *logger) SafePrint(parentURL string, urls map[string]struct{}, validation bool) {
+  if validation {
+    return
+  }
+
   l.mutex.Lock()
   defer l.mutex.Unlock()
   fmt.Println(parentURL)
   for url, _ := range urls {
     fmt.Println("\t", url)
   }
+  return
+}
+
+// ValidateWebCrawler verifies the crawled urls against a stored snapshot of urls from previous crawl
+func ValidateWebCrawler(crawledURLs *safeMap) {
+  crawledURLs.mutex.Lock()
+  defer crawledURLs.mutex.Unlock()
+
+  // Read the validation input from file
+  file, err := os.Open("./validationURLs.txt")
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer file.Close()
+
+  scanner := bufio.NewScanner(file)
+  validationURLs := make([]string, 0)
+  for scanner.Scan() {
+    validationURLs = append(validationURLs, scanner.Text())
+  }
+
+  // Compare new crawl with the saved validation urls
+  validCount := 0
+  for _, url := range validationURLs {
+    if _, ok := crawledURLs.m[url]; ok {
+      validCount++
+    }
+  }
+
+  if float64(validCount) >= (_validationThreshold * float64(len(validationURLs))) {
+    fmt.Println("Webcrawler validated successfully on a sample result set!")
+    return
+  }
+  fmt.Println("valid count against 5000 URLs: ", validCount)
+  fmt.Println("Webcrawler result are not valid :( \nThis might be due to some external factors as well, maybe try again?")
+
   return
 }
