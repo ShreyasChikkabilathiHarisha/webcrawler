@@ -21,7 +21,7 @@ $ cd <path to the cloned repo>
 $ go run main.go http://www.rescale.com <integer value for stopping point based on max number of urls crawled>
 ```
 
-## Validation
+## Manual Validation
 The above command should print each URL and all its sub URLs, followed by the next URL and all of its sub URLs and so on. The parent URL should be printed first and all its sub urls should be printed with a tab space before on each line.
 
 eg:
@@ -51,7 +51,7 @@ I have added comments in the code on few things that can be improved for quick p
 
 Few other improvements are with error handling/logging, filter on urls and waits/retries of http get call. There are times when the crawling stops due to few of the above mentioned issues, which can be significantly improved with follow-up patches.
 
-## Validation
+## Automated Validation
 There is an inbuilt validation logic to make sure if the webcrawler is working as expected. The command to validate webcrawler is as follows:
 ```
 go run main.go validate
