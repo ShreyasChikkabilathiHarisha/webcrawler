@@ -18,7 +18,7 @@ Run the following command to test if this program is working as expected:
 ```
 $ git clone git@github.com:ShreyasChikkabilathiHarisha/webcrawler.git
 $ cd <path to the cloned repo>
-$ go run main.go http://www.rescale.com
+$ go run main.go http://www.rescale.com <integer value for stopping point based on max number of urls crawled>
 ```
 
 ## Validation
