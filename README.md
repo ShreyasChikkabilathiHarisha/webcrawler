@@ -46,11 +46,6 @@ https://resources.rescale.com/news/
          .
 ```
 
-## Potential improvements that can immediately improve this current implementation
-I have added comments in the code on few things that can be improved for quick performance benifits.
-
-Few other improvements are with error handling/logging, filter on urls and waits/retries of http get call. There are times when the crawling stops due to few of the above mentioned issues, which can be significantly improved with follow-up patches.
-
 ## Automated Validation
 There is an inbuilt validation logic to make sure if the webcrawler is working as expected. The command to validate webcrawler is as follows:
 ```
@@ -67,6 +62,11 @@ The logic uses a comparison threshold of 0.2 as the number of similar urls will 
    5. Rate limiting on websites
 
 Due to above listed reasons, a lower comparison threshold has been chosen to validate the results of webcrawler.
+
+## Potential improvements that can immediately improve this current implementation
+I have added comments in the code on few things that can be improved for quick performance benifits.
+
+Few other improvements are with error handling/logging, filter on urls and waits/retries of http get call. There are times when the crawling stops due to few of the above mentioned issues, which can be significantly improved with follow-up patches.
 
 ## Note
 There are few options added as comments which indicate alternate ways of doing things with explanation on the same
